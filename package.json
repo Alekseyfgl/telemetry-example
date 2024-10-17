@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "debug": "nodemon src/index.ts",
+    "debug1": "nodemon src/index1.ts",
+    "debug2": "nodemon src/index2.ts",
     "build": "tsc"
   },
   "keywords": [],
@@ -18,11 +19,15 @@
     "@opentelemetry/sdk-node": "^0.53.0",
     "@opentelemetry/sdk-trace-node": "^1.26.0",
     "@opentelemetry/semantic-conventions": "^1.27.0",
-    "express": "^4.21.0"
+    "amqplib": "^0.10.4",
+    "express": "^4.21.0",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/express": "^5.0.0",
     "@types/node": "^22.7.4",
+    "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
