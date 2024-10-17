@@ -9,7 +9,7 @@ import { v4 } from 'uuid';
 
 let rabbitChannel: Channel;
 
-const RABBITMQ_URL = 'amqp://gen_user:%3E%5Cp-13tGt4%258eN@80.242.57.39:5672/default_vhost';
+const RABBITMQ_URL = 'amqp://gen_user:K%3D%3C%5Cw4vO%40~%24X!4@80.242.57.39:5672/default_vhost';
 const QUEUE = 'test-1';
 const PORT = 3000;
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

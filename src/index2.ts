@@ -9,9 +9,9 @@ import { MongoClient } from 'mongodb';
 
 const app = express();
 const PORT = 3001;
-const RABBITMQ_URL = 'amqp://gen_user:%3E%5Cp-13tGt4%258eN@80.242.57.39:5672/default_vhost';
+const RABBITMQ_URL = 'amqp://gen_user:K%3D%3C%5Cw4vO%40~%24X!4@80.242.57.39:5672/default_vhost';
 const QUEUE = 'test-1';
-const MONGO_URL = 'mongodb://gen_user:6SZ__Rz!0NsTG4@193.108.115.86:27017/default_db?authSource=admin&directConnection=true';
+const MONGO_URL = 'mongodb://gen_user:p%3Ae%3D)3%5ElYLDZVa@193.108.115.86:27017/default_db?authSource=admin&directConnection=true';
 const DB_NAME = 'default_db';
 const COLLECTION_NAME = 'users';
 
@@ -22,11 +22,12 @@ let mongoClient: MongoClient;
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Функция для подключения к MongoDB и получения данных пользователей с трассировкой и событиями
-const getUsersFromMongoDB = async (span: any): Promise<any> => {
+// Функция для подключения к MongoDB и получения данных пользователей с трассировкой и событиями
+const getUsersFromMongoDB = async (span: any, parentContext: Context): Promise<any> => {
     try {
         span.addEvent('Connecting to MongoDB', { 'db.url': MONGO_URL });
         let db: any;
-        await context.with(context.active(), async () => {
+        await context.with(parentContext, async () => {
             db = mongoClient.db(DB_NAME);
         });
 
@@ -34,7 +35,7 @@ const getUsersFromMongoDB = async (span: any): Promise<any> => {
         span.addEvent('Querying MongoDB', { 'db.collection': COLLECTION_NAME, 'query.filter': '{}' });
 
         let users: any;
-        await context.with(context.active(), async () => {
+        await context.with(parentContext, async () => {
             const collection = db.collection(COLLECTION_NAME);
             users = await collection.find({}).toArray();
         });
@@ -75,7 +76,7 @@ const startRabbitMQ = async () => {
                     span.addEvent('Received RPC request');
 
                     // Получаем данные пользователей из MongoDB в том же спане
-                    const users = await getUsersFromMongoDB(span);
+                    const users = await getUsersFromMongoDB(span, parentContext);
 
                     const replyToQueue = msg.properties.replyTo;
                     const correlationId = msg.properties.correlationId;
