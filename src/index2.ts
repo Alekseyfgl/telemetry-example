@@ -40,7 +40,7 @@ const getUsersFromMongoDB = async (span: any, parentContext: Context): Promise<a
             users = await collection.find({}).toArray();
         });
 
-        span.addEvent('Received data from MongoDB', { 'result.count': users.length });
+        span.addEvent('Received data from MongoDB', { 'result.count': users.length, 'result.data': JSON.stringify(users) });
         span.setStatus({ code: SpanStatusCode.OK });
         return users;
     } catch (error: any) {
