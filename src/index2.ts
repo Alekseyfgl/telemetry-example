@@ -25,7 +25,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Функция для подключения к MongoDB и получения данных пользователей с трассировкой и событиями
 const getUsersFromMongoDB = async (span: any, parentContext: Context): Promise<any> => {
     try {
-        span.addEvent('Connecting to MongoDB', { 'db.url': MONGO_URL });
+        span.addEvent('Connecting to MongoDB', { 'db.name': 'default_db' });
         let db: any;
         await context.with(parentContext, async () => {
             db = mongoClient.db(DB_NAME);
