@@ -30,9 +30,9 @@ const sendRpcRequest = async (channel: Channel, queue: string, message: string, 
             { noAck: true }
         );
 
-        // Включаем контекст span-а в сообщение
+        // Включаем переданный контекст span-а в сообщение
         const headers = {};
-        propagation.inject(context.active(), headers);
+        propagation.inject(spanContext, headers);  // Используем spanContext, переданный в параметр
 
         // Отправляем запрос в очередь с указанием replyTo, correlationId и headers (с контекстом)
         channel.sendToQueue(queue, Buffer.from(message), {
@@ -137,18 +137,18 @@ app.get('/employees', async (req: Request, res: Response) => {
     try {
         parentSpan.addEvent('Start processing employee request');
 
-        const rpcSpan = trace.getTracer('default').startSpan('send-rpc-request', {
-            kind: SpanKind.CLIENT,
-            attributes: { 'messaging.system': 'rabbitmq', 'messaging.destination': 'test-1', 'rpc.call': 'fetch-employee-data' },
-        }, parentContext);
+        parentSpan.addEvent('send-rpc-request', {
+            'messaging.system': 'rabbitmq',
+            'messaging.destination': 'test-1',
+            'rpc.call': 'fetch-employee-data'
+        });
 
         const messageToSend = JSON.stringify({ message: 'Hello world!' });
 
         // Отправка запроса и ожидание ответа через RPC
         const rpcResponse = await sendRpcRequest(rabbitChannel, 'test-1', messageToSend, parentContext);
 
-        rpcSpan.end(); // Закрываем спан RPC-запроса
-
+        // Переносим закрытие rpcSpan после обработки ответа
         const employees = JSON.parse(rpcResponse); // Парсим ответ
 
         const processSpan = trace.getTracer('default').startSpan('process-employee-data', {
