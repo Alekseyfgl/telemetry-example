@@ -1,11 +1,11 @@
 import express from 'express';
-import { trace, context, propagation, SpanKind, Context, SpanStatusCode } from '@opentelemetry/api';
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
-import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
-import amqp, { Channel, ConsumeMessage } from 'amqplib';
-import { MongoClient } from 'mongodb';
+import {trace, context, propagation, SpanKind, Context, SpanStatusCode} from '@opentelemetry/api';
+import {NodeSDK} from '@opentelemetry/sdk-node';
+import {OTLPTraceExporter} from '@opentelemetry/exporter-trace-otlp-http';
+import {Resource} from '@opentelemetry/resources';
+import {ATTR_SERVICE_NAME} from '@opentelemetry/semantic-conventions';
+import amqp, {Channel, ConsumeMessage} from 'amqplib';
+import {MongoClient} from 'mongodb';
 
 const app = express();
 const PORT = 3001;
@@ -23,32 +23,56 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Функция для подключения к MongoDB и получения данных пользователей с трассировкой и событиями
 // Функция для подключения к MongoDB и получения данных пользователей с трассировкой и событиями
-const getUsersFromMongoDB = async (span: any, parentContext: Context): Promise<any> => {
-    try {
-        span.addEvent('Connecting to MongoDB', { 'db.name': 'default_db' });
-        let db: any;
-        await context.with(parentContext, async () => {
-            db = mongoClient.db(DB_NAME);
+const getUsersFromMongoDB = async (span: any): Promise<any> => {
+    // Создаем новый спан для MongoDB операций внутри текущего активного контекста
+    return context.with(trace.setSpan(context.active(), span), async () => {
+        const mongoSpan = trace.getTracer('default').startSpan('mongo-operation', {
+            kind: SpanKind.CLIENT,
+            attributes: {
+                'db.system': 'mongodb',
+                'db.name': DB_NAME,
+                'db.collection': COLLECTION_NAME
+            },
         });
 
-        span.addEvent('Connected to MongoDB');
-        span.addEvent('Querying MongoDB', { 'db.collection': COLLECTION_NAME, 'query.filter': '{}' });
+        try {
+            mongoSpan.addEvent('Connecting to MongoDB', {'db.name': DB_NAME});
+            const db = mongoClient.db(DB_NAME);
 
-        let users: any;
-        await context.with(parentContext, async () => {
+            mongoSpan.addEvent('Connected to MongoDB');
+            mongoSpan.addEvent('Querying MongoDB', {'db.collection': COLLECTION_NAME, 'query.filter': '{}'});
+
             const collection = db.collection(COLLECTION_NAME);
-            users = await collection.find({}).toArray();
-        });
+            const users = await collection.find({}).toArray();
 
-        span.addEvent('Received data from MongoDB', { 'result.count': users.length, 'result.data': JSON.stringify(users) });
-        span.setStatus({ code: SpanStatusCode.OK });
-        return users;
-    } catch (error: any) {
-        span.recordException(error);
-        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-        span.addEvent('Error during MongoDB operations', { 'error.message': error.message });
-        return [];
-    }
+            mongoSpan.addEvent('Received data from MongoDB', {
+                'result.count': users.length,
+                'result.data': JSON.stringify(users)
+            });
+            mongoSpan.setStatus({code: SpanStatusCode.OK});
+            return users;
+        } catch (error: any) {
+            mongoSpan.recordException(error);
+            mongoSpan.setStatus({code: SpanStatusCode.ERROR, message: error.message});
+            mongoSpan.addEvent('Error during MongoDB operations', {'error.message': error.message});
+            return [];
+        } finally {
+            mongoSpan.end(); // Завершаем спан для MongoDB операций
+        }
+    });
+};
+
+// Функция для оборачивания задержки в контекст
+const delayWithTracing = async (ms: number, span: any) => {
+    return context.with(trace.setSpan(context.active(), span), async () => {
+        const delaySpan = trace.getTracer('default').startSpan('delay-operation');
+        delaySpan.addEvent('Starting delay');
+
+        await delay(ms); // Ваш метод задержки
+
+        delaySpan.addEvent('Delay completed');
+        delaySpan.end(); // Завершаем спан задержки
+    });
 };
 
 // Функция для обработки сообщений RabbitMQ
@@ -62,42 +86,45 @@ const startRabbitMQ = async () => {
                 // Извлекаем контекст трассировки из заголовков сообщения
                 const parentContext = propagation.extract(context.active(), msg.properties.headers);
 
-                // Создаем один родительский спан для всех операций
-                const span = trace.getTracer('default').startSpan('process-rpc-and-mongo', {
-                    kind: SpanKind.SERVER,
-                    attributes: {
-                        'messaging.system': 'rabbitmq',
-                        'rpc.call': 'process-employees',
-                        'queue.name': QUEUE
-                    },
-                }, parentContext);
+                // Создаем один родительский спан для всех операций внутри извлеченного контекста
+                context.with(parentContext, async () => {
+                    const span = trace.getTracer('default').startSpan('process-rpc-and-mongo', {
+                        kind: SpanKind.SERVER,
+                        attributes: {
+                            'messaging.system': 'rabbitmq',
+                            'rpc.call': 'process-employees',
+                            'queue.name': QUEUE
+                        },
+                    });
 
-                try {
-                    span.addEvent('Received RPC request');
+                    try {
+                        span.addEvent('Received RPC request');
 
-                    // Получаем данные пользователей из MongoDB в том же спане
-                    const users = await getUsersFromMongoDB(span, parentContext);
+                        // Получаем данные пользователей из MongoDB, создавая отдельный спан для MongoDB операций
+                        const users = await getUsersFromMongoDB(span);
 
-                    const replyToQueue = msg.properties.replyTo;
-                    const correlationId = msg.properties.correlationId;
-                    const responseMessage = JSON.stringify(users);
+                        const replyToQueue = msg.properties.replyTo;
+                        const correlationId = msg.properties.correlationId;
+                        const responseMessage = JSON.stringify(users);
 
-                    await delay(3000); // Имитация задержки
+                        // Выполняем задержку с трассировкой
+                        await delayWithTracing(3000, span); // Оборачиваем задержку в контекст и спан
 
-                    // Отправляем ответ в callback-очередь
-                    channel.sendToQueue(replyToQueue, Buffer.from(responseMessage), { correlationId });
-                    span.addEvent('Sent response to RPC caller');
+                        // Отправляем ответ в callback-очередь
+                        channel.sendToQueue(replyToQueue, Buffer.from(responseMessage), {correlationId});
+                        span.addEvent('Sent response to RPC caller');
 
-                    span.setStatus({ code: SpanStatusCode.OK });
-                } catch (error: any) {
-                    span.recordException(error);
-                    span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-                    console.error('Error processing RPC request:', error);
-                } finally {
-                    span.end(); // Завершаем общий спан
-                }
+                        span.setStatus({code: SpanStatusCode.OK});
+                    } catch (error: any) {
+                        span.recordException(error);
+                        span.setStatus({code: SpanStatusCode.ERROR, message: error.message});
+                        console.error('Error processing RPC request:', error);
+                    } finally {
+                        span.end(); // Завершаем общий спан
+                    }
 
-                channel.ack(msg);
+                    channel.ack(msg);
+                });
             }
         });
     } catch (error) {
@@ -109,8 +136,8 @@ const startRabbitMQ = async () => {
 const setupTracing = async () => {
     try {
         const sdk = new NodeSDK({
-            traceExporter: new OTLPTraceExporter({ url: 'http://localhost:4318/v1/traces' }),
-            resource: new Resource({ [ATTR_SERVICE_NAME]: 'service-2' }),
+            traceExporter: new OTLPTraceExporter({url: 'http://localhost:4318/v1/traces'}),
+            resource: new Resource({'service.name': 'service-2'}),
         });
         sdk.start();
         console.log('Tracing initialized');
