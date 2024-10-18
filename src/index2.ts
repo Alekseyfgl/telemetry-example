@@ -137,7 +137,7 @@ const setupTracing = async () => {
     try {
         const sdk = new NodeSDK({
             traceExporter: new OTLPTraceExporter({url: 'http://localhost:4318/v1/traces'}),
-            resource: new Resource({'service.name': 'service-2'}),
+            resource: new Resource({ATTR_SERVICE_NAME: 'service-2'}),
         });
         sdk.start();
         console.log('Tracing initialized');
