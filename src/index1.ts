@@ -92,11 +92,12 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Маршрут для получения списка пользователей с задержкой в 2 секунды
-app.get('/users', (req: Request, res: Response) => {
+app.get('/exception', (req: Request, res: Response) => {
     const parentSpan = trace.getTracer('default').startSpan('users-page', {
         kind: SpanKind.SERVER,
         attributes: { 'http.method': req.method, 'http.url': req.url, 'client.ip': req.ip },
     });
+    throw new Error('Describer error')
     const parentContext = trace.setSpan(context.active(), parentSpan);
 
     try {
