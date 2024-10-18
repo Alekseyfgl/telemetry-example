@@ -20,3 +20,35 @@ services:
     volumes:
       - ./otel-config.yaml:/etc/otel-config.yaml  # Связываем конфигурацию для коллектора
     command: ["--config", "/etc/otel-config.yaml"]
+
+  node-server-telemetry1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-server1
+    ports:
+      - "3000:3000"
+    environment:
+      - SERVER_1_PORT=3000
+    depends_on:
+      - jaeger
+      - otel-collector
+    volumes:
+      - ./src/index1.ts:/usr/src/app/src/index1.ts
+    command: ["node", "dist/index1.js"]
+
+  node-server-telemetry2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-server2
+    ports:
+      - "3001:3001"
+    environment:
+      - SERVER_2_PORT=3001
+    depends_on:
+      - jaeger
+      - otel-collector
+    volumes:
+      - ./src/index2.ts:/usr/src/app/src/index2.ts
+    command: ["node", "dist/index2.js"]
