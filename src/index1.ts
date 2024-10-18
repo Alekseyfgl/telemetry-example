@@ -97,12 +97,12 @@ app.get('/exception', (req: Request, res: Response) => {
         kind: SpanKind.SERVER,
         attributes: { 'http.method': req.method, 'http.url': req.url, 'client.ip': req.ip },
     });
-    throw new Error('Describer error')
+
     const parentContext = trace.setSpan(context.active(), parentSpan);
 
     try {
         parentSpan.addEvent('Start processing request');
-
+        throw new Error('Describer error')
         const childSpan1 = trace.getTracer('default').startSpan('fetch-data', {
             kind: SpanKind.CLIENT,
             attributes: { 'db.system': 'mongodb', 'db.statement': 'SELECT * FROM users' },
