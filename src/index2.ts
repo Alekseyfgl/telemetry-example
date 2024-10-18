@@ -139,7 +139,7 @@ const startRabbitMQ = async () => {
 const setupTracing = async () => {
     try {
         const sdk = new NodeSDK({
-            traceExporter: new OTLPTraceExporter({url: 'http://localhost:4318/v1/traces'}),
+            traceExporter: new OTLPTraceExporter({url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT}),
             resource: new Resource({
                 [SemanticResourceAttributes.SERVICE_NAME]: 'service-2',  // Задаем имя сервиса корректно
             }),

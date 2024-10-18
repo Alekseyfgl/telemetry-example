@@ -1,25 +1,34 @@
 version: '3.7'
 
+networks:
+  otel-network:
+    driver: bridge
+
 services:
   jaeger:
     image: jaegertracing/all-in-one:1.41
     container_name: jaeger
     ports:
-      - "16686:16686"    # Веб-интерфейс Jaeger
-      - "14268:14268"    # HTTP порт для получения трассировок
-      - "14250:14250"    # gRPC порт для получения трассировок
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"  # Нужно добавить этот порт для Zipkin
     environment:
       - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+    networks:
+      - otel-network
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.80.0
     container_name: otel-collector
     ports:
-      - "4317:4317"      # OTLP gRPC
-      - "4318:4318"      # OTLP HTTP
+      - "4317:4317"
+      - "4318:4318"
     volumes:
-      - ./otel-config.yaml:/etc/otel-config.yaml  # Связываем конфигурацию для коллектора
+      - ./otel-config.yaml:/etc/otel-config.yaml
     command: ["--config", "/etc/otel-config.yaml"]
+    networks:
+      - otel-network
 
   node-server-telemetry1:
     build:
@@ -30,12 +39,17 @@ services:
       - "3000:3000"
     environment:
       - SERVER_1_PORT=3000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
     depends_on:
-      - jaeger
-      - otel-collector
+      jaeger:
+        condition: service_started  # Изменено на service_started
+      otel-collector:
+        condition: service_started
     volumes:
       - ./src/index1.ts:/usr/src/app/src/index1.ts
-    command: ["node", "dist/index1.js"]
+    command: [ "sh", "-c", "sleep 7 && node dist/index1.js" ]
+    networks:
+      - otel-network
 
   node-server-telemetry2:
     build:
@@ -46,9 +60,14 @@ services:
       - "3001:3001"
     environment:
       - SERVER_2_PORT=3001
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
     depends_on:
-      - jaeger
-      - otel-collector
+      jaeger:
+        condition: service_started  # Изменено на service_started
+      otel-collector:
+        condition: service_started
     volumes:
       - ./src/index2.ts:/usr/src/app/src/index2.ts
-    command: ["node", "dist/index2.js"]
+    command: [ "sh", "-c", "sleep 7 && node dist/index2.js" ]
+    networks:
+      - otel-network

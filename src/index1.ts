@@ -49,7 +49,7 @@ const sendRpcRequest = async (channel: Channel, queue: string, message: string, 
 const setupTracing = async () => {
     try {
         const sdk = new NodeSDK({
-            traceExporter: new OTLPTraceExporter({ url: `http://localhost:4318/v1/traces` }),
+            traceExporter: new OTLPTraceExporter({ url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT }),
             resource: new Resource({ [ATTR_SERVICE_NAME]: 'service-1' }),
         });
 
