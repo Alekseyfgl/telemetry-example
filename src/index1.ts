@@ -61,7 +61,7 @@ const setupTracing = async () => {
 };
 
 // Настраиваем OpenTelemetry
-setupTracing();
+
 
 // Подключение к RabbitMQ
 const connectRabbitMQ = async (): Promise<Channel> => {
@@ -173,6 +173,7 @@ app.get('/employees', async (req: Request, res: Response) => {
 
 // Запуск сервера с подключением к RabbitMQ
 const startServer = async () => {
+   await setupTracing();
     rabbitChannel = await connectRabbitMQ(); // Устанавливаем канал RabbitMQ
     app.listen(PORT, () => {
         console.log(`Server is running at http://localhost:${PORT}`);

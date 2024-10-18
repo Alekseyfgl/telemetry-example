@@ -3,11 +3,10 @@ import {trace, context, propagation, SpanKind, Context, SpanStatusCode} from '@o
 import {NodeSDK} from '@opentelemetry/sdk-node';
 import {OTLPTraceExporter} from '@opentelemetry/exporter-trace-otlp-http';
 import {Resource} from '@opentelemetry/resources';
-import {ATTR_SERVICE_NAME} from '@opentelemetry/semantic-conventions';
 import amqp, {Channel, ConsumeMessage} from 'amqplib';
 import {MongoClient} from 'mongodb';
 import dotenv from 'dotenv';
-
+const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 dotenv.config();
 
 
@@ -141,7 +140,9 @@ const setupTracing = async () => {
     try {
         const sdk = new NodeSDK({
             traceExporter: new OTLPTraceExporter({url: 'http://localhost:4318/v1/traces'}),
-            resource: new Resource({ATTR_SERVICE_NAME: 'service-2'}),
+            resource: new Resource({
+                [SemanticResourceAttributes.SERVICE_NAME]: 'service-2',  // Задаем имя сервиса корректно
+            }),
         });
         sdk.start();
         console.log('Tracing initialized');
@@ -151,12 +152,12 @@ const setupTracing = async () => {
 };
 
 // Вызов функции настройки трассировки
-setupTracing();
+
 
 // Подключение к MongoDB и запуск сервера
 app.listen(PORT, async () => {
     console.log(`Server is running at http://localhost:${PORT}`);
-
+   await setupTracing();
     try {
         mongoClient = new MongoClient(MONGO_URL);
         await mongoClient.connect();
