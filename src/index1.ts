@@ -6,12 +6,14 @@ import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import amqp, { Channel, ConsumeMessage } from 'amqplib';
 import { v4 } from 'uuid';
+import dotenv from 'dotenv';
 
+dotenv.config();
 let rabbitChannel: Channel;
 
-const RABBITMQ_URL = 'amqp://gen_user:K%3D%3C%5Cw4vO%40~%24X!4@80.242.57.39:5672/default_vhost';
+const RABBITMQ_URL = process.env.RABBITMQ_URL!;
 const QUEUE = 'test-1';
-const PORT = 3000;
+const PORT = process.env.SERVER_1_PORT!
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Функция для отправки RPC-запроса в очередь RabbitMQ

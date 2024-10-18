@@ -21,12 +21,14 @@
     "@opentelemetry/semantic-conventions": "^1.27.0",
     "@types/mongodb": "^4.0.7",
     "amqplib": "^0.10.4",
+    "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "mongodb": "^6.9.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
+    "@types/dotenv": "^8.2.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.7.4",
     "@types/uuid": "^10.0.0",

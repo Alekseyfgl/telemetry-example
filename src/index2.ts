@@ -6,12 +6,16 @@ import {Resource} from '@opentelemetry/resources';
 import {ATTR_SERVICE_NAME} from '@opentelemetry/semantic-conventions';
 import amqp, {Channel, ConsumeMessage} from 'amqplib';
 import {MongoClient} from 'mongodb';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 
 const app = express();
-const PORT = 3001;
-const RABBITMQ_URL = 'amqp://gen_user:K%3D%3C%5Cw4vO%40~%24X!4@80.242.57.39:5672/default_vhost';
+const PORT = process.env.SERVER_2_PORT!;
+const RABBITMQ_URL = process.env.RABBITMQ_URL!;
 const QUEUE = 'test-1';
-const MONGO_URL = 'mongodb://gen_user:p%3Ae%3D)3%5ElYLDZVa@193.108.115.86:27017/default_db?authSource=admin&directConnection=true';
+const MONGO_URL = process.env.MONGO_URL!;
 const DB_NAME = 'default_db';
 const COLLECTION_NAME = 'users';
 
